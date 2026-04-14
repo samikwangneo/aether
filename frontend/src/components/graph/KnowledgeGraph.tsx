@@ -42,7 +42,6 @@ export function KnowledgeGraph({
   const courses = useAppStore((s) => s.courses);
   const allConcepts = useAppStore((s) => s.concepts);
   const allConnections = useAppStore((s) => s.connections);
-  const selectedConceptId = useAppStore((s) => s.selectedConceptId);
   const setSelectedConceptId = useAppStore((s) => s.setSelectedConceptId);
   const dismissRemediation = useCommandStore((s) => s.dismissRemediation);
 

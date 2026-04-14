@@ -49,7 +49,6 @@ export function ConceptInspector({ onClose }: ConceptInspectorProps) {
   const connections = useAppStore((s) => s.connections);
   const courses = useAppStore((s) => s.courses);
   const setPendingChatPrompt = useAppStore((s) => s.setPendingChatPrompt);
-  const setChatModalOpen = useAppStore((s) => s.setChatModalOpen);
   const clearChat = useAppStore((s) => s.clearChat);
   const conceptArtifacts = useAppStore((s) => s.conceptArtifacts);
   const setConceptArtifact = useAppStore((s) => s.setConceptArtifact);

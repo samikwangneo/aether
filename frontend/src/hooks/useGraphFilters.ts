@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { getCurrentSemesterWeek } from "./useWeekGraph";
-import type { Concept, Connection } from "../types";
+import type { Concept } from "../types";
 
 /**
  * Centralized graph filtering pipeline.

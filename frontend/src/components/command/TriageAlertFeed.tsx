@@ -1,6 +1,5 @@
 import { AlertTriangle, Shield } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAppStore } from "@/store/useAppStore";
 import { useCommandStore } from "@/store/useCommandStore";
 import type { TriageStatus, RemediationPlan } from "@/types";
@@ -155,9 +154,7 @@ export function TriageAlertFeed({ variant = "bento" }: TriageAlertFeedProps) {
     const assignment = assignments.find((a) => a.id === assignmentId);
     if (!assignment) return;
 
-    const status = triageStatuses[assignmentId] ?? "healthy";
     const course = courseMap.get(assignment.course_id);
-    const courseName = course?.name ?? assignment.course_id.toUpperCase();
 
     let steps: RemediationPlan["steps"] = [];
     let conceptsMissed: string[] = [];

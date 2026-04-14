@@ -245,6 +245,11 @@ export interface AppState {
   setPendingChatPrompt: (prompt: string | null) => void;
   setPendingStudyTopic: (topic: string | PendingStudyTopic | null) => void;
 
+  // Specialized agent mode
+  specializedAgentUrl: string | null;
+  specializedAgentLabel: string | null;
+  setSpecializedAgent: (url: string | null, label?: string | null) => void;
+
   // Global modal open state (driven by store so any component can trigger)
   chatModalOpen: boolean;
   studyLabModalOpen: boolean;

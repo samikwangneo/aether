@@ -1,10 +1,9 @@
-import { 
-  AlertTriangle, 
-  CalendarPlus, 
-  Check, 
-  Circle, 
-  Clock, 
-  X, 
+import {
+  CalendarPlus,
+  Check,
+  Circle,
+  Clock,
+  X,
   Loader2,
   ChevronLeft
 } from "lucide-react";
