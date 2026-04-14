@@ -1,4 +1,4 @@
-const BASE_URL = "http://localhost:8000/api";
+const BASE_URL = "https://aether-production-c4b1.up.railway.app/api";
 
 async function request<T>(
   path: string,
