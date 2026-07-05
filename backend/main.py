@@ -11,6 +11,7 @@ On shutdown:
   1. Close httpx client
 """
 
+import asyncio
 from contextlib import asynccontextmanager
 import logging
 
@@ -55,10 +56,15 @@ async def _init_terpai():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """FastAPI lifespan: start TerpAI on boot, close on shutdown."""
-    await _init_terpai()
+    """
+    FastAPI lifespan: kick off TerpAI init in the background instead of awaiting
+    it, so the app (and Railway's healthcheck) comes up immediately even if
+    terpai.umd.edu is slow or unreachable.
+    """
+    init_task = asyncio.create_task(_init_terpai())
     yield
     log.info("🛑 Shutting down TerpAI bridge...")
+    init_task.cancel()
     await terpai_bridge.stop()
 
 
