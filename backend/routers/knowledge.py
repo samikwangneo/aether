@@ -4,25 +4,13 @@ from models.schemas import GraphRefreshRequest, KnowledgeContextRequest, CourseR
 from services.terpai import bridge
 from services.gemini import build_knowledge_document, generate_json_fallback
 from services.umd_service import umd_service
+from services import course_data
 from prompts.graph_analysis import build_graph_analysis_prompt
 from prompts.topic_knowledge import build_topic_knowledge_prompt
 from prompts.course_recommendation import (
     build_course_recommendation_prompt,
     build_recommendation_json_prompt,
 )
-
-try:
-    from data.courses import COURSES
-    from data.assignments import ASSIGNMENTS
-    from data.notes import NOTES
-    from data.concepts import CONCEPTS
-    from data.connections import CONNECTIONS
-except ImportError:
-    COURSES = []
-    ASSIGNMENTS = []
-    NOTES = []
-    CONCEPTS = []
-    CONNECTIONS = []
 
 log = logging.getLogger("knowledge")
 
@@ -41,9 +29,10 @@ async def build_context(request: KnowledgeContextRequest):
     """
     query = request.prompt or ""
     course_filter = request.course_id
+    concepts = course_data.get_concepts()
 
     if request.concept_id:
-        concept = next((c for c in CONCEPTS if c["id"] == request.concept_id), None)
+        concept = next((c for c in concepts if c["id"] == request.concept_id), None)
         if concept:
             query = f"{concept['label']} — {query}" if query else concept["label"]
             if not course_filter:
@@ -57,13 +46,15 @@ async def build_context(request: KnowledgeContextRequest):
     log.info(f"🧠 Building knowledge context for: \"{query}\" (course={course_filter})")
 
     try:
+        assignments = await course_data.get_assignments()
+        courses = await course_data.get_courses()
         prompt = build_topic_knowledge_prompt(
             query=query,
-            concepts=CONCEPTS,
-            assignments=ASSIGNMENTS,
-            notes=NOTES,
-            connections=CONNECTIONS,
-            courses=COURSES,
+            concepts=concepts,
+            assignments=assignments,
+            notes=course_data.get_notes(),
+            connections=course_data.get_connections(),
+            courses=courses,
             course_filter=course_filter,
         )
         context_doc = await build_knowledge_document(prompt)

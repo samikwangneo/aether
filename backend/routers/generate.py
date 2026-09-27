@@ -25,6 +25,7 @@ from models.schemas import (
 )
 from services.terpai import bridge, TerpAIError
 from services.gemini import generate_json_fallback, generate_text_fallback
+from services import course_data
 from prompts.context_builder import (
     build_terpai_study_guide_prompt,
     build_terpai_flashcards_prompt,
@@ -34,16 +35,12 @@ from prompts.study_guide import build_study_guide_prompt
 from prompts.flashcards import build_flashcards_prompt
 from prompts.quiz import build_quiz_prompt
 
-try:
-    from data.courses import COURSES
-except ImportError:
-    COURSES = []
-
 router = APIRouter()
 
 
-def _find_course(course_id: str) -> dict:
-    for c in COURSES:
+async def _find_course(course_id: str) -> dict:
+    courses = await course_data.get_courses()
+    for c in courses:
         if c["id"] == course_id:
             return c
     return {"id": course_id, "name": course_id.upper(), "topics": ["general topics"]}
@@ -129,7 +126,7 @@ async def _send_to_terpai_or_fallback_json(terpai_prompt: str, fallback_prompt: 
 @router.post("/generate/study-guide", response_model=StudyGuideResponse)
 async def generate_study_guide(request: GenerateRequest):
     """Generate a markdown study guide via TerpAI (Gemini fallback)."""
-    course = _find_course(request.course_id)
+    course = await _find_course(request.course_id)
 
     terpai_prompt = build_terpai_study_guide_prompt(
         topic=request.topic,
@@ -166,7 +163,7 @@ async def generate_study_guide(request: GenerateRequest):
 @router.post("/generate/flashcards", response_model=FlashcardsResponse)
 async def generate_flashcards(request: GenerateRequest):
     """Generate flashcards via TerpAI (Gemini JSON fallback if response isn't valid JSON)."""
-    course = _find_course(request.course_id)
+    course = await _find_course(request.course_id)
 
     terpai_prompt = build_terpai_flashcards_prompt(
         topic=request.topic,
@@ -213,7 +210,7 @@ async def generate_flashcards(request: GenerateRequest):
 @router.post("/generate/quiz", response_model=QuizResponse)
 async def generate_quiz(request: GenerateRequest):
     """Generate quiz questions via TerpAI (Gemini JSON fallback if response isn't valid JSON)."""
-    course = _find_course(request.course_id)
+    course = await _find_course(request.course_id)
 
     terpai_prompt = build_terpai_quiz_prompt(
         topic=request.topic,

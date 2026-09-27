@@ -26,6 +26,7 @@ log = logging.getLogger("main")
 
 from routers import chat, generate, parse, graph, data, knowledge, umd
 from services.terpai import bridge as terpai_bridge
+from services.canvas import bridge as canvas_bridge
 
 
 async def _init_terpai():
@@ -54,18 +55,40 @@ async def _init_terpai():
         log.error(f"❌ TerpAI init failed: {e}. Falling back to Gemini for all requests.")
 
 
+async def _init_canvas():
+    """
+    Initialize the Canvas (ELMS) bridge. Runs at startup, backgrounded like TerpAI's
+    init so a slow/unreachable/unauthenticated Canvas session never blocks the
+    healthcheck. Errors are logged but don't crash the server.
+    """
+    try:
+        await canvas_bridge.start()
+        if canvas_bridge.ready:
+            log.info("✅ Canvas bridge initialized — live ELMS data available")
+        else:
+            log.warning(
+                "⚠️  Canvas bridge not ready. Run `python refresh_canvas_session.py` "
+                "once, then restart. Falling back to mock course data."
+            )
+    except Exception as e:
+        log.error(f"❌ Canvas init failed: {e}. Falling back to mock course data.")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
-    FastAPI lifespan: kick off TerpAI init in the background instead of awaiting
-    it, so the app (and Railway's healthcheck) comes up immediately even if
-    terpai.umd.edu is slow or unreachable.
+    FastAPI lifespan: kick off TerpAI + Canvas init in the background instead of
+    awaiting them, so the app (and Railway's healthcheck) comes up immediately even
+    if terpai.umd.edu / elms.umd.edu are slow or unreachable.
     """
-    init_task = asyncio.create_task(_init_terpai())
+    terpai_task = asyncio.create_task(_init_terpai())
+    canvas_task = asyncio.create_task(_init_canvas())
     yield
-    log.info("🛑 Shutting down TerpAI bridge...")
-    init_task.cancel()
+    log.info("🛑 Shutting down TerpAI + Canvas bridges...")
+    terpai_task.cancel()
+    canvas_task.cancel()
     await terpai_bridge.stop()
+    await canvas_bridge.stop()
 
 
 app = FastAPI(title="Aether Intelligence API", lifespan=lifespan)
@@ -108,4 +131,5 @@ def health():
         "status": "ok",
         "terpai_ready": terpai_bridge._ready,
         "terpai_agent_url": terpai_bridge._agent_chat_url,
+        "canvas_ready": canvas_bridge.ready,
     }

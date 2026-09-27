@@ -18,23 +18,16 @@ from models.schemas import (
 )
 from services.terpai import bridge, TerpAIError
 from services.gemini import generate_json_fallback
+from services import course_data
 from prompts.context_builder import build_terpai_concept_extract_prompt
 from prompts.concept_extract import build_concept_extract_prompt
-
-try:
-    from data.courses import COURSES
-    from data.concepts import CONCEPTS
-    from data.connections import CONNECTIONS
-except ImportError:
-    COURSES = []
-    CONCEPTS = []
-    CONNECTIONS = []
 
 router = APIRouter()
 
 
-def _find_course(course_id: str) -> dict:
-    for c in COURSES:
+async def _find_course(course_id: str) -> dict:
+    courses = await course_data.get_courses()
+    for c in courses:
         if c["id"] == course_id:
             return c
     return {"id": course_id, "name": course_id.upper(), "topics": []}
@@ -66,7 +59,7 @@ async def get_initial_graph():
             course_id=c["course_id"],
             description=c["description"],
         )
-        for c in CONCEPTS
+        for c in course_data.get_concepts()
     ]
     edges = [
         ConceptEdge(
@@ -74,7 +67,7 @@ async def get_initial_graph():
             target=conn["target"],
             relationship=conn["relationship"],
         )
-        for conn in CONNECTIONS
+        for conn in course_data.get_connections()
     ]
     return InitialGraphResponse(nodes=nodes, edges=edges)
 
@@ -88,7 +81,7 @@ async def extract_concepts(request: GraphExtractRequest):
     if not request.text.strip():
         raise HTTPException(status_code=400, detail="Text cannot be empty")
 
-    course = _find_course(request.course_id)
+    course = await _find_course(request.course_id)
 
     terpai_prompt = build_terpai_concept_extract_prompt(
         text=request.text,

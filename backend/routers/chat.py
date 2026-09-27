@@ -17,18 +17,9 @@ from fastapi.responses import StreamingResponse
 from models.schemas import ChatRequest
 from services.terpai import bridge, TerpAIError
 from services.gemini import generate_text_fallback
+from services import course_data
 from prompts.context_builder import build_terpai_chat_prompt
 from prompts.chat_system import build_chat_system_prompt
-
-# Import mock data (populated by Person 3)
-try:
-    from data.courses import COURSES
-    from data.assignments import ASSIGNMENTS
-    from data.notes import NOTES
-except ImportError:
-    COURSES = []
-    ASSIGNMENTS = []
-    NOTES = []
 
 router = APIRouter()
 
@@ -44,6 +35,10 @@ async def chat(request: ChatRequest):
     if not request.messages:
         raise HTTPException(status_code=400, detail="Messages list cannot be empty")
 
+    courses = await course_data.get_courses()
+    assignments = await course_data.get_assignments()
+    notes = course_data.get_notes()
+
     # The latest user message
     last_message = request.messages[-1].content
     history = [
@@ -55,7 +50,7 @@ async def chat(request: ChatRequest):
     named_triage = {}
     if request.triage_statuses:
         for aid, stat in request.triage_statuses.items():
-            assignment = next((a for a in ASSIGNMENTS if a.get("id") == aid), None)
+            assignment = next((a for a in assignments if a.get("id") == aid), None)
             name = assignment.get("name", aid) if assignment else aid
             named_triage[name] = stat
 
@@ -96,9 +91,9 @@ async def chat(request: ChatRequest):
                 # Optional: The chat fallback could also include remediation context if desired,
                 # but we'll focus mostly on the courses logic.
                 system_prompt = build_chat_system_prompt(
-                    courses=COURSES,
-                    assignments=ASSIGNMENTS,
-                    notes=NOTES,
+                    courses=courses,
+                    assignments=assignments,
+                    notes=notes,
                     course_filter=request.course_context,
                     triage_statuses=request.triage_statuses,
                     active_remediation=request.active_remediation,
