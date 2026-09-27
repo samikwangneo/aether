@@ -1,7 +1,43 @@
 import { useMemo } from "react";
 import { useAppStore } from "../store/useAppStore";
 import { getCurrentSemesterWeek } from "./useWeekGraph";
-import type { Concept } from "../types";
+import type { Concept, Course } from "../types";
+
+/**
+ * Course IDs that make up the "current semester" view. Never returns an empty
+ * set when there are concepts to show:
+ *   1. Courses whose date window contains now (missing dates count as open-ended),
+ *      restricted to courses that actually have concepts.
+ *   2. Otherwise, the most recently started term among courses with concepts
+ *      (e.g. between semesters, or stale course dates).
+ *   3. Otherwise (course IDs don't line up with concept data at all), every
+ *      course that has concepts.
+ */
+export function getSemesterCourseIds(courses: Course[], concepts: Concept[]): Set<string> {
+  const conceptCourseIds = new Set(concepts.map((c) => c.course_id));
+  const withConcepts = courses.filter((c) => conceptCourseIds.has(c.id));
+  const now = Date.now();
+
+  const current = withConcepts.filter((course) => {
+    if (course.workflow_state === "completed") return false;
+    const start = course.start_at ? Date.parse(course.start_at) : NaN;
+    const end = course.end_at ? Date.parse(course.end_at) : NaN;
+    return (isNaN(start) || start <= now) && (isNaN(end) || end >= now);
+  });
+  if (current.length > 0) return new Set(current.map((c) => c.id));
+
+  const started = withConcepts
+    .map((c) => ({ id: c.id, start: c.start_at ? Date.parse(c.start_at) : NaN }))
+    .filter((c) => !isNaN(c.start) && c.start <= now);
+  if (started.length > 0) {
+    const latest = Math.max(...started.map((c) => c.start));
+    // Same term if it started within ~2 months of the latest start.
+    const window = 60 * 24 * 60 * 60 * 1000;
+    return new Set(started.filter((c) => latest - c.start <= window).map((c) => c.id));
+  }
+
+  return conceptCourseIds;
+}
 
 /**
  * Centralized graph filtering pipeline.
@@ -36,19 +72,7 @@ export function useGraphFilters() {
       (c) => c.mastery >= masteryRange[0] && c.mastery <= masteryRange[1]
     );
 
-    // Determine active semester courses
-    const now = new Date();
-    const semesterCourseIds = new Set(
-      courses
-        .filter((course) => {
-          if (!course.start_at) return false;
-          const start = new Date(course.start_at);
-          const end = course.end_at ? new Date(course.end_at) : null;
-          // Course is current if it started before now and ends after now (or hasn't ended)
-          return start <= now && (!end || end >= now);
-        })
-        .map((c) => c.id)
-    );
+    const semesterCourseIds = getSemesterCourseIds(courses, concepts);
 
     // 3. View mode
     if (viewMode === "semester") {
